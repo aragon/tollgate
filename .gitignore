@@ -14,4 +14,7 @@ scTopics
 
 # truffle build artifacts
 abi/
+artifacts
 build/
+cache
+
