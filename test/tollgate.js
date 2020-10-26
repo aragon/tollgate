@@ -1,8 +1,10 @@
-const { bigExp } = require('./helpers/numbers')(web3)
-const { assertEvent } = require('@aragon/test-helpers/assertEvent')(web3)
-const { assertRevert } = require('@aragon/test-helpers/assertThrow')
-const { encodeCallScript } = require('@aragon/test-helpers/evmScript')
-const { getEventArgument, getNewProxyAddress } = require('@aragon/test-helpers/events')
+const { bn, bigExp } = require('@aragon/contract-helpers-test/src/numbers')
+const { assertEvent, assertRevert } = require('@aragon/contract-helpers-test/src/asserts')
+const { injectWeb3, injectArtifacts, ZERO_ADDRESS } = require('@aragon/contract-helpers-test')
+const { newDao, installNewApp, encodeCallScript } = require('@aragon/contract-helpers-test/src/aragon-os')
+
+injectWeb3(web3)
+injectArtifacts(artifacts)
 
 const Tollgate = artifacts.require('Tollgate')
 
@@ -13,14 +15,13 @@ const MiniMeToken = artifacts.require('MiniMeToken')
 const ExecutionTarget = artifacts.require('ExecutionTarget')
 const EVMScriptRegistryFactory = artifacts.require('EVMScriptRegistryFactory')
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
-
 contract('Tollgate', ([_, root, user, destination, anotherDestination, someone]) => {
   let dao, acl, tollgate, feeToken
   let daoFactory, tollgateBase, kernelBase
   let CHANGE_AMOUNT_ROLE, CHANGE_DESTINATION_ROLE, APP_MANAGER_ROLE
 
   const FEE_AMOUNT = bigExp(1, 18)
+  const APP_ID = '0x1234123412341234123412341234123412341234123412341234123412341234'
 
   before('deploy base implementations', async () => {
     kernelBase = await Kernel.new(true) // petrify immediately
@@ -31,7 +32,7 @@ contract('Tollgate', ([_, root, user, destination, anotherDestination, someone])
   })
 
   before('deploy fee token', async () => {
-    feeToken = await MiniMeToken.new('0x0', '0x0', 0, 'Fee Token', 18, 'FTK', true, { from: root }) // dummy parameters for minime
+    feeToken = await MiniMeToken.new(ZERO_ADDRESS, ZERO_ADDRESS, 0, 'Fee Token', 18, 'FTK', true, { from: root }) // dummy parameters for minime
     await feeToken.generateTokens(user, bigExp(100, 18), { from: root })
   })
 
@@ -41,16 +42,9 @@ contract('Tollgate', ([_, root, user, destination, anotherDestination, someone])
     CHANGE_DESTINATION_ROLE = await tollgateBase.CHANGE_DESTINATION_ROLE()
   })
 
-  beforeEach('create DAO', async () => {
-    const receipt = await daoFactory.newDAO(root)
-    dao = Kernel.at(getEventArgument(receipt, 'DeployDAO', 'dao'))
-    acl = ACL.at(await dao.acl())
-    await acl.createPermission(root, dao.address, APP_MANAGER_ROLE, root, { from: root })
-  })
-
-  beforeEach('create tollgate app', async () => {
-    const receipt = await dao.newAppInstance('0x1234', tollgateBase.address, '0x', false, { from: root })
-    tollgate = Tollgate.at(getNewProxyAddress(receipt))
+  beforeEach('deploy DAO with tollgate', async () => {
+    const { dao, acl } = await newDao(root)
+    tollgate = await Tollgate.at(await installNewApp(dao, APP_ID, tollgateBase.address, root))
 
     await acl.createPermission(root, tollgate.address, CHANGE_AMOUNT_ROLE, root, { from: root })
     await acl.createPermission(root, tollgate.address, CHANGE_DESTINATION_ROLE, root, { from: root })
@@ -115,7 +109,7 @@ contract('Tollgate', ([_, root, user, destination, anotherDestination, someone])
         })
 
         context('when the new fee amount is different than the one before', () => {
-          const newFeeAmount = FEE_AMOUNT.mul(2)
+          const newFeeAmount = FEE_AMOUNT.mul(bn(2))
 
           itUpdatesTheFeeAmountSuccessfully(newFeeAmount)
         })
@@ -133,14 +127,14 @@ contract('Tollgate', ([_, root, user, destination, anotherDestination, someone])
         const from = someone
 
         it('reverts', async () =>  {
-          await assertRevert(tollgate.changeFeeAmount(FEE_AMOUNT.mul(2), { from }), 'APP_AUTH_FAILED')
+          await assertRevert(tollgate.changeFeeAmount(FEE_AMOUNT.mul(bn(2)), { from }), 'APP_AUTH_FAILED')
         })
       })
     })
 
     context('when it has not been initialized yet', () => {
       it('reverts', async () => {
-        await assertRevert(tollgate.changeFeeAmount(FEE_AMOUNT.mul(2), { from: root }), 'APP_AUTH_FAILED')
+        await assertRevert(tollgate.changeFeeAmount(FEE_AMOUNT.mul(bn(2)), { from: root }), 'APP_AUTH_FAILED')
       })
     })
   })
@@ -209,7 +203,7 @@ contract('Tollgate', ([_, root, user, destination, anotherDestination, someone])
       })
 
       it('returns configured fee token and amount', async () => {
-        const [token, amount] = await tollgate.forwardFee()
+        const {'0': token, '1': amount} = await tollgate.forwardFee()
 
         assert.equal(token, feeToken.address, 'fee token does not match')
         assert.equal(amount.toString(), FEE_AMOUNT.toString(), 'fee amount does not match')
@@ -218,7 +212,7 @@ contract('Tollgate', ([_, root, user, destination, anotherDestination, someone])
 
     context('when it has not been initialized yet', () => {
       it('returns empty values', async () => {
-        const [token, amount] = await tollgate.forwardFee()
+        const {'0': token, '1': amount} = await tollgate.forwardFee()
 
         assert.equal(token, ZERO_ADDRESS, 'fee token does not match')
         assert.equal(amount.toString(), 0, 'fee amount does not match')
@@ -252,7 +246,7 @@ contract('Tollgate', ([_, root, user, destination, anotherDestination, someone])
         await tollgate.initialize(feeToken.address, FEE_AMOUNT, destination)
       })
 
-      context('when the sender is has fee tokens', () => {
+      context('when the sender has fee tokens', () => {
         const sender = user
 
         it('returns true', async () =>  {
@@ -270,7 +264,7 @@ contract('Tollgate', ([_, root, user, destination, anotherDestination, someone])
     })
 
     context('when it has not been initialized yet', () => {
-      context('when the sender is has fee tokens', () => {
+      context('when the sender has fee tokens', () => {
         const sender = user
 
         it('returns false', async () =>  {
@@ -293,7 +287,7 @@ contract('Tollgate', ([_, root, user, destination, anotherDestination, someone])
 
     beforeEach('build script', async () => {
       executionTarget = await ExecutionTarget.new()
-      const action = { to: executionTarget.address, calldata: executionTarget.contract.execute.getData() }
+      const action = { to: executionTarget.address, calldata: executionTarget.contract.methods.execute().encodeABI() }
       script = encodeCallScript([action])
     })
 
@@ -325,8 +319,8 @@ contract('Tollgate', ([_, root, user, destination, anotherDestination, someone])
             const userCurrentBalance = await feeToken.balanceOf(user)
             const destinationCurrentBalance = await feeToken.balanceOf(destination)
 
-            assert.equal(userCurrentBalance.toString(), userPreviousBalance.minus(FEE_AMOUNT).toString(), 'user current balance does not match')
-            assert.equal(destinationCurrentBalance.toString(), destinationPreviousBalance.plus(FEE_AMOUNT).toString(), 'destination current balance does not match')
+            assert.equal(userCurrentBalance.toString(), userPreviousBalance.sub(FEE_AMOUNT).toString(), 'user current balance does not match')
+            assert.equal(destinationCurrentBalance.toString(), destinationPreviousBalance.add(FEE_AMOUNT).toString(), 'destination current balance does not match')
           })
         })
 
