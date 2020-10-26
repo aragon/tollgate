@@ -1,4 +1,5 @@
 const { usePlugin } = require('@nomiclabs/buidler/config')
+const hooks = require('./scripts/buidler-hooks')
 
 usePlugin('@aragon/buidler-aragon')
 usePlugin('@nomiclabs/buidler-solhint')
@@ -52,5 +53,11 @@ module.exports = {
   },
   gasReporter: {
     enabled: process.env.GAS_REPORTER ? true : false,
-  }
+  },
+  aragon: {
+    appServePort: 8001,
+    clientServePort: 3000,
+    appBuildOutputPath: 'dist/',
+    hooks,
+  },
 }
