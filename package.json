@@ -1,6 +1,6 @@
 {
   "name": "@aragon/tollgate",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Aragon forwarder for protecting actions with fees",
   "scripts": {
     "compile": "buidler compile --force",
@@ -12,7 +12,8 @@
     "test": "buidler test --network buidlerevm",
     "test:gas": "REPORT_GAS=true buidler test --network localhost",
     "coverage": "SOLIDITY_COVERAGE=true npm run ganache-cli:test",
-    "abi:extract": "buidler-extract --output abi/ --keys abi"
+    "abi:extract": "buidler-extract --output abi/ --keys abi",
+    "start": "buidler start"
   },
   "files": [
     "/abi",
@@ -24,19 +25,16 @@
   "contributors": [
     "Brett Sun <brett@aragon.one>",
     "Facu Spagnuolo <facu@aragon.one>",
-    "Luke Dunkan <luke@aragon.one>"
+    "Luke Dunkan <luke@aragon.one>",
+    "David Llop <sembrestels@protonmail.com>"
   ],
   "repository": "https://github.com/aragon/aragonOS",
   "license": "GPL-3.0-or-later",
   "devDependencies": {
-    "@aragon/apps-finance": "^3.0.0",
-    "@aragon/apps-shared-migrations": "1.0.0",
-    "@aragon/apps-shared-minime": "1.0.0",
-    "@aragon/apps-token-manager": "^2.1.0",
-    "@aragon/apps-vault": "^4.1.0",
-    "@aragon/apps-voting": "^2.1.0",
+    "@aragon/apm": "https://github.com/aragon/apm/archive/v1.0.0.tar.gz",
     "@aragon/buidler-aragon": "^0.2.9",
-    "@aragon/test-helpers": "^2.0.0",
+    "@aragon/minime": "^1.0.0",
+    "@aragon/contract-helpers-test": "^0.1.0",
     "@nomiclabs/buidler": "^1.4.3",
     "@nomiclabs/buidler-etherscan": "^1.3.3",
     "@nomiclabs/buidler-ganache": "^1.3.3",
@@ -51,6 +49,6 @@
     "web3": "^1.2.11"
   },
   "dependencies": {
-    "@aragon/os": "aragon/aragonOS#e45412fbf5f7be257e9b9e3ab215ce8dfa6c9664"
+    "@aragon/os": "^5.0.0-rc.0"
   }
 }

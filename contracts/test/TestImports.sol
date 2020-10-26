@@ -1,7 +1,8 @@
 pragma solidity 0.4.24;
 
-import "@aragon/os/contracts/factory/EVMScriptRegistryFactory.sol";
-import "@aragon/apps-shared-migrations/contracts/Migrations.sol";
+import "@aragon/apm/contracts/apm/APMRegistryFactory.sol";
+import "@aragon/minime/contracts/MiniMeToken.sol";
+import "@aragon/contract-helpers-test/contracts/0.4/misc/ExecutionTarget.sol";
 
 // You might think this file is a bit odd, but let me explain.
 // We only use some contracts in our tests, which means Truffle

@@ -1,8 +1,8 @@
 pragma solidity 0.4.24;
 
 import "@aragon/os/contracts/apps/AragonApp.sol";
-import "@aragon/os/contracts/common/IForwarder.sol";
-import "@aragon/os/contracts/common/IForwarderFee.sol";
+import "@aragon/os/contracts/forwarding/IForwarder.sol";
+import "@aragon/os/contracts/forwarding/IForwarderFee.sol";
 import "@aragon/os/contracts/common/SafeERC20.sol";
 import "@aragon/os/contracts/lib/token/ERC20.sol";
 
@@ -19,7 +19,7 @@ contract Tollgate is AragonApp, IForwarder, IForwarderFee {
     string private constant ERROR_INVALID_FEE_DESTINATION = "TOLLGATE_INVALID_FEE_DESTINATION";
     string private constant ERROR_FEE_TRANSFER_REVERTED = "TOLLGATE_FEE_TRANSFER_REVERTED";
 
-    ERC20 public feeToken;
+    address public feeToken;
     uint256 public feeAmount;
     address public feeDestination;
 
@@ -32,7 +32,7 @@ contract Tollgate is AragonApp, IForwarder, IForwarderFee {
     * @param _feeAmount Amount of tokens collected as a fee on each forward
     * @param _feeDestination Destination for collected fees
     */
-    function initialize(ERC20 _feeToken, uint256 _feeAmount, address _feeDestination) external onlyInit {
+    function initialize(address _feeToken, uint256 _feeAmount, address _feeDestination) external onlyInit {
         initialized();
 
         require(_feeDestination != address(0), ERROR_INVALID_FEE_DESTINATION);
@@ -72,7 +72,7 @@ contract Tollgate is AragonApp, IForwarder, IForwarderFee {
     * @return Forwarder fee amount
     */
     function forwardFee() external view returns (address, uint256) {
-        return (address(feeToken), feeAmount);
+        return (feeToken, feeAmount);
     }
 
     /**
@@ -89,12 +89,12 @@ contract Tollgate is AragonApp, IForwarder, IForwarderFee {
     * @dev IForwarder interface conformance. Forwards any action if the sender pays the configured amount.
     * @param _evmScript Script being executed
     */
-    function forward(bytes _evmScript) public {
-        require(canForward(msg.sender, _evmScript), ERROR_CAN_NOT_FORWARD);
+    function forward(bytes _evmScript) external {
+        require(_canForward(), ERROR_CAN_NOT_FORWARD);
 
         // Don't do an unnecessary transfer if there's no fee right now
         if (feeAmount > 0) {
-            require(feeToken.safeTransferFrom(msg.sender, feeDestination, feeAmount), ERROR_FEE_TRANSFER_REVERTED);
+            require(ERC20(feeToken).safeTransferFrom(msg.sender, feeDestination, feeAmount), ERROR_FEE_TRANSFER_REVERTED);
         }
 
         // Fee transfer successful; run script
@@ -108,7 +108,11 @@ contract Tollgate is AragonApp, IForwarder, IForwarderFee {
     * @dev IForwarder interface conformance. It assumes the sender can always forward actions through the Tollgate app.
     * @return Always true unless app it's not initialized
     */
-    function canForward(address, bytes) public view returns (bool) {
+    function canForward(address, bytes) external view returns (bool) {
+        return _canForward();
+    }
+
+    function _canForward() internal view returns (bool) {
         return hasInitialized();
     }
 }
